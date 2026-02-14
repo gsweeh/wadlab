@@ -486,229 +486,157 @@ JOIN (
 ```
 
 ---
-### 1) HRM scenario: Entities, attributes, relationships, constraints (ER)
+## A) Entities, attributes, relationships (Solar Energy – easy & exam-friendly)
 
-#### Entities + key attributes
+### Entities
 
-* **DEPARTMENT**(**dept_id**, dept_name)
-* **EMPLOYEE**(**emp_id**, f_name, l_name, salary, dept_id, supervisor_id)
-* **PROJECT**(**proj_id**, proj_name, status, budget, dept_id)
-* **WORKS_ON**(**emp_id**, **proj_id**)  *(bridge table for M:N)*
-* **DEPENDENT**(**dep_id**, dep_name, relation, emp_id)
-* **PROJECT_CITY**(**proj_id**, **city**) *(project can be in multiple cities)*
+1. **DISTRIBUTOR**(**did**, dname, phone)
+2. **PLACE**(**pid**, pname, ptype)  *(ptype: Domestic / Commercial)*
+3. **PANEL**(**panid**, ptype, capacity_kw) *(ptype: Mono / Poly)*
+4. **INSTALLATION**(**iid**, did, pid, panid, inst_date, charge)
 
-#### Relationships + cardinality + participation
+### Relationships + Cardinality + Participation
 
-1. **DEPARTMENT — employs — EMPLOYEE**
+* **Distributor — installs — Installation**
 
-   * Cardinality: **1 : N** (one dept has many employees)
-   * Participation: **EMPLOYEE total** (every employee must belong to a dept), **DEPARTMENT partial**
-2. **EMPLOYEE — supervises — EMPLOYEE** (recursive)
+  * **1 : N** (one distributor can do many installations)
+  * Installation participation: **total** (every installation must have a distributor)
+* **Place — has — Installation**
 
-   * Cardinality: **1 : N** (one supervisor can supervise many employees)
-   * Participation: **partial** (top manager may have NULL supervisor_id)
-3. **DEPARTMENT — controls — PROJECT**
+  * **1 : N** (one place can have many installations)
+  * Installation participation: **total**
+* **Panel — used_in — Installation**
 
-   * Cardinality: **1 : N**
-   * Participation: **PROJECT total** (every project must be controlled by a dept)
-4. **EMPLOYEE — works_on — PROJECT** (via WORKS_ON)
-
-   * Cardinality: **M : N**
-   * Participation: **partial** (employee may work on 0 projects; project may have 0 employees in simple model)
-5. **EMPLOYEE — has — DEPENDENT**
-
-   * Cardinality: **1 : N**
-   * Participation: **DEPENDENT total**, **EMPLOYEE partial**
-6. **PROJECT — located_in — CITY** (via PROJECT_CITY)
-
-   * Cardinality: **1 : N** (one project can be in many cities)
+  * **1 : N** (one panel type/model can be used in many installations)
+  * Installation participation: **total**
 
 ---
 
-## 2) ER → Relational schema (mapping)
+## B) ER → Relational Schema (mapping)
 
-* DEPARTMENT(**dept_id**, dept_name)
-* EMPLOYEE(**emp_id**, f_name, l_name, salary, dept_id → DEPARTMENT.dept_id, supervisor_id → EMPLOYEE.emp_id)
-* PROJECT(**proj_id**, proj_name, status, budget, dept_id → DEPARTMENT.dept_id)
-* WORKS_ON(**emp_id** → EMPLOYEE.emp_id, **proj_id** → PROJECT.proj_id, PK(emp_id, proj_id))
-* DEPENDENT(**dep_id**, dep_name, relation, emp_id → EMPLOYEE.emp_id)
-* PROJECT_CITY(**proj_id** → PROJECT.proj_id, **city**, PK(proj_id, city))
+* DISTRIBUTOR(**did**, dname, phone)
+* PLACE(**pid**, pname, ptype)
+* PANEL(**panid**, ptype, capacity_kw)
+* INSTALLATION(**iid**, did→DISTRIBUTOR, pid→PLACE, panid→PANEL, inst_date, charge)
 
 ---
 
-# 3) Create tables + insert small sample data (easy, exam-friendly)
+# C) SQL (DDL + DML) — smallest but complete
 
 ```sql
-CREATE TABLE Department(
-  dept_id INT PRIMARY KEY,
-  dept_name VARCHAR(20) UNIQUE
+CREATE TABLE Distributor(did INT PRIMARY KEY,dname VARCHAR(20),phone VARCHAR(12));
+CREATE TABLE Place(pid INT PRIMARY KEY,pname VARCHAR(20),ptype VARCHAR(10));          -- Domestic/Commercial
+CREATE TABLE Panel(panid INT PRIMARY KEY,ptype VARCHAR(10),capacity_kw INT);         -- Mono/Poly
+CREATE TABLE Installation(
+  iid INT PRIMARY KEY,did INT,pid INT,panid INT,inst_date DATE,charge INT,
+  FOREIGN KEY(did) REFERENCES Distributor(did),
+  FOREIGN KEY(pid) REFERENCES Place(pid),
+  FOREIGN KEY(panid) REFERENCES Panel(panid)
 );
 
-CREATE TABLE Employee(
-  emp_id INT PRIMARY KEY,
-  f_name VARCHAR(20),
-  l_name VARCHAR(20),
-  salary INT,
-  dept_id INT NOT NULL,
-  supervisor_id INT,
-  FOREIGN KEY(dept_id) REFERENCES Department(dept_id),
-  FOREIGN KEY(supervisor_id) REFERENCES Employee(emp_id)
-);
+INSERT INTO Distributor VALUES
+(1,'SunPower','9001'),(2,'GreenVolt','9002'),(3,'RaySolar','9003');
 
-CREATE TABLE Project(
-  proj_id INT PRIMARY KEY,
-  proj_name VARCHAR(30),
-  status VARCHAR(12),     -- 'Ongoing' / 'Completed'
-  budget INT,             -- use rupees
-  dept_id INT NOT NULL,
-  FOREIGN KEY(dept_id) REFERENCES Department(dept_id)
-);
+INSERT INTO Place VALUES
+(1,'AnnaNagar','Domestic'),(2,'Tnagar','Domestic'),(3,'Guindy','Commercial'),
+(4,'Velachery','Commercial'),(5,'Adyar','Domestic');
 
-CREATE TABLE Works_On(
-  emp_id INT,
-  proj_id INT,
-  PRIMARY KEY(emp_id, proj_id),
-  FOREIGN KEY(emp_id) REFERENCES Employee(emp_id),
-  FOREIGN KEY(proj_id) REFERENCES Project(proj_id)
-);
+INSERT INTO Panel VALUES
+(1,'Mono',5),(2,'Mono',10),(3,'Poly',5),(4,'Poly',8);
 
-CREATE TABLE Dependent(
-  dep_id INT PRIMARY KEY,
-  dep_name VARCHAR(20),
-  relation VARCHAR(12),
-  emp_id INT NOT NULL,
-  FOREIGN KEY(emp_id) REFERENCES Employee(emp_id)
-);
-
-CREATE TABLE Project_City(
-  proj_id INT,
-  city VARCHAR(20),
-  PRIMARY KEY(proj_id, city),
-  FOREIGN KEY(proj_id) REFERENCES Project(proj_id)
-);
-
--- DATA
-INSERT INTO Department VALUES
-(1,'Finance'),(2,'R&D'),(3,'HR');
-
-INSERT INTO Employee VALUES
-(101,'Amit','Shah',90000,1,105),
-(102,'Neha','Singh',70000,1,105),
-(103,'Ravi','Kumar',120000,2,106),
-(104,'Pooja','Nair',95000,2,106),
-(105,'Sita','Rao',150000,3,NULL),
-(106,'Arun','Das',140000,2,105),
-(107,'Kiran','Patel',80000,3,105),
-(108,'Vijay','Mehta',110000,2,106);
-
-INSERT INTO Project VALUES
-(201,'Payroll App','Ongoing',400000,1),
-(202,'Budget Tool','Completed',600000,1),
-(203,'AI HR','Ongoing',800000,2),
-(204,'Lab System','Completed',500000,2),
-(205,'Recruit Portal','Ongoing',300000,3);
-
-INSERT INTO Works_On VALUES
-(101,201),(101,202),
-(102,201),
-(103,203),(103,204),(103,201),
-(104,203),(104,204),(104,201),
-(108,203),(108,204),(108,201);
-
-INSERT INTO Dependent VALUES
-(1,'Anu','Spouse',103),
-(2,'Ria','Child',103),
-(3,'Dev','Child',101);
-
-INSERT INTO Project_City VALUES
-(201,'Mumbai'),
-(203,'Bengaluru'),(203,'Hyderabad'),
-(204,'Chennai'),
-(205,'Delhi'),(205,'Mumbai');
+INSERT INTO Installation VALUES
+(101,1,1,2,'2022-01-10',200000),
+(102,1,2,1,'2023-02-15',120000),
+(103,2,3,4,'2021-05-20',180000),
+(104,2,4,2,'2020-03-12',260000),
+(105,3,5,3,'2024-01-05',100000),
+(106,3,1,1,'2019-12-25',90000),
+(107,1,3,2,'2022-08-10',240000);
 ```
 
 ---
 
-# 4) SQL for the given problems
+# D) Queries (answers to given problems)
 
-### 1) f_Name, l_Name, dept_Name of employees whose salary > average salary of Finance dept
+## 1) Distributor with most installations in Domestic places
 
 ```sql
-SELECT e.f_name, e.l_name, d.dept_name
-FROM Employee e JOIN Department d ON e.dept_id=d.dept_id
-WHERE e.salary > (
-  SELECT AVG(e2.salary)
-  FROM Employee e2 JOIN Department d2 ON e2.dept_id=d2.dept_id
-  WHERE d2.dept_name='Finance'
-);
+SELECT d.dname
+FROM Distributor d JOIN Installation i ON d.did=i.did
+JOIN Place p ON p.pid=i.pid
+WHERE p.ptype='Domestic'
+GROUP BY d.did,d.dname
+ORDER BY COUNT(*) DESC
+LIMIT 1;
 ```
 
-### 2) employee name + department who works on > 2 projects controlled by R&D
+## 2) Place name with highest capacity panel installed
 
 ```sql
-SELECT e.f_name, e.l_name, d.dept_name
-FROM Employee e
-JOIN Department d ON e.dept_id=d.dept_id
-JOIN Works_On w ON e.emp_id=w.emp_id
-JOIN Project p ON w.proj_id=p.proj_id
-JOIN Department rd ON p.dept_id=rd.dept_id
-WHERE rd.dept_name='R&D'
-GROUP BY e.emp_id, e.f_name, e.l_name, d.dept_name
-HAVING COUNT(*) > 2;
+SELECT p.pname
+FROM Place p JOIN Installation i ON p.pid=i.pid
+JOIN Panel pa ON pa.panid=i.panid
+ORDER BY pa.capacity_kw DESC
+LIMIT 1;
 ```
 
-### 3) all ongoing projects controlled by all departments (dept + project)
+## 3) Display the area where Monocrystalline (Mono) panels are installed
 
 ```sql
-SELECT d.dept_name, p.proj_name
-FROM Department d JOIN Project p ON d.dept_id=p.dept_id
-WHERE p.status='Ongoing'
-ORDER BY d.dept_name;
+SELECT DISTINCT p.pname
+FROM Place p JOIN Installation i ON p.pid=i.pid
+JOIN Panel pa ON pa.panid=i.panid
+WHERE pa.ptype='Mono';
 ```
 
-### 4) supervisor details supervising >3 employees who completed at least one project
+## 4) For a specific area, total installation charges for both PV types (Mono & Poly)
+
+*(Example area = 'AnnaNagar')*
 
 ```sql
-SELECT s.emp_id, s.f_name, s.l_name, s.salary
-FROM Employee s
-JOIN Employee e ON e.supervisor_id = s.emp_id
-WHERE EXISTS (
-  SELECT 1
-  FROM Works_On w JOIN Project p ON w.proj_id=p.proj_id
-  WHERE w.emp_id=e.emp_id AND p.status='Completed'
-)
-GROUP BY s.emp_id, s.f_name, s.l_name, s.salary
-HAVING COUNT(*) > 3;
+SELECT pa.ptype, SUM(i.charge) AS total_charge
+FROM Installation i
+JOIN Place p ON p.pid=i.pid
+JOIN Panel pa ON pa.panid=i.panid
+WHERE p.pname='AnnaNagar'
+GROUP BY pa.ptype;
 ```
 
-### 5) names of dependents of employees whose completed projects total budget = 10L (10,00,000)
+## 5) Distributor + panel details of the oldest installation
 
 ```sql
-SELECT dep.dep_name
-FROM Dependent dep
-JOIN (
-  SELECT w.emp_id
-  FROM Works_On w JOIN Project p ON w.proj_id=p.proj_id
-  WHERE p.status='Completed'
-  GROUP BY w.emp_id
-  HAVING SUM(p.budget) = 1000000
-) x ON dep.emp_id = x.emp_id;
+SELECT d.dname, pa.ptype, pa.capacity_kw, i.inst_date, i.charge
+FROM Installation i
+JOIN Distributor d ON d.did=i.did
+JOIN Panel pa ON pa.panid=i.panid
+ORDER BY i.inst_date
+LIMIT 1;
 ```
 
-### 6) department + employee details whose project is in more than one city
+## 6) Average sales (avg charge) of both panel types in only Commercial places
 
 ```sql
-SELECT DISTINCT d.dept_name, e.emp_id, e.f_name, e.l_name
-FROM Employee e
-JOIN Department d ON e.dept_id=d.dept_id
-JOIN Works_On w ON e.emp_id=w.emp_id
-JOIN (
-  SELECT proj_id
-  FROM Project_City
-  GROUP BY proj_id
-  HAVING COUNT(*) > 1
-) pc ON w.proj_id = pc.proj_id;
+SELECT pa.ptype, AVG(i.charge) AS avg_sales
+FROM Installation i
+JOIN Place p ON p.pid=i.pid
+JOIN Panel pa ON pa.panid=i.panid
+WHERE p.ptype='Commercial'
+GROUP BY pa.ptype;
 ```
 
 ---
+
+## (What to draw in ER diagram on paper — very easy)
+
+Draw 4 boxes: **Distributor**, **Place**, **Panel**, **Installation**
+Connect **Installation** to all three with lines:
+
+* Distributor 1 —— N Installation
+* Place 1 —— N Installation
+* Panel 1 —— N Installation
+
+(Installation is the central table)
+
+If you want, I can make an **ultra-short version** with fewer columns (still supports all queries) so it’s even faster to write.
+
 
